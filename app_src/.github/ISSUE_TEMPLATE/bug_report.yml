@@ -1,0 +1,46 @@
+name: 缺陷报告
+description: 报告 FlClash Root 的可复现问题
+title: '[Bug]: '
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本
+      placeholder: 0.9.1-root.1（注明是否为 debug 包）
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 设备与环境
+      description: 设备型号、Android 版本、CPU 架构、root 方案及版本、当前运行模式。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开……
+        2. 执行……
+        3. 观察……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 包括出现频率、影响范围及临时解决方式（如有）。
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志、配置与截图
+      description: 请先移除订阅链接、密码、Token、密钥及个人信息。

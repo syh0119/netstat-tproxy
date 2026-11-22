@@ -1,0 +1,29 @@
+# Build caches, tool shims & local machine configs
+cargo_home/
+rustup_shim/
+dist/
+*.apk
+*.zip
+*.exe
+*.log
+
+# Prebuilt large binaries (attach to GitHub Releases)
+ksu_module/bin/FlClashCore
+ksu_module/bin/flclash-helper
+
+# Flutter / Dart / Gradle artifacts
+app_src/.dart_tool/
+app_src/.flutter-plugins
+app_src/.flutter-plugins-dependencies
+app_src/build/
+app_src/android/.gradle/
+app_src/android/build/
+app_src/android/local.properties
+app_src/android/key.properties
+app_src/android/*.jks
+app_src/android/*.keystore
+app_src/plugins/*/rust/target/
+**/build/
+**/.gradle/
+.DS_Store
+Thumbs.db

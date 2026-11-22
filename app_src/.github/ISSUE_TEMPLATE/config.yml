@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 贡献与交付规范
+    url: https://github.com/yuanjing-hash/FlClash/blob/main/docs/CONTRIBUTING.md
+    about: 提交前请阅读团队流程、分支、测试和发布规范。

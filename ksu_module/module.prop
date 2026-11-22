@@ -1,0 +1,6 @@
+id=flclash_tproxy
+name=FlClash TProxy Backend
+version=v1.0.0
+versionCode=100
+author=Seagull
+description=Persistent FlClashCore & TProxy policy-routing daemon for FlClash TProxy frontend (ARM64 KernelSU/Magisk).

@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 2,
+  "versions": [
+    {
+      "version": "1.1.12",
+      "tag": "v1.1.12",
+      "date": "2026-11-13",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "6ac8394",
+              "scope": "android",
+              "text": "Capture sockets bound to cellular and Wi-Fi source addresses"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.11",
+      "tag": "v1.1.11",
+      "date": "2026-11-10",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "4329086",
+              "scope": "android",
+              "text": "Apply application access control to SDK sandbox UIDs and retain bounded DNS response diagnostics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.10",
+      "tag": "v1.1.10",
+      "date": "2026-11-08",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "e2bfbe1",
+              "scope": "android",
+              "text": "Restore selected-app DNS routing and refresh caches after Root TUN transitions"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.9",
+      "tag": "v1.1.9",
+      "date": "2026-11-07",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "43a57a3",
+              "scope": "android",
+              "text": "Keep shared Android DNS outside per-app Root TUN capture and repair DNS cache refresh"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.8",
+      "tag": "v1.1.8",
+      "date": "2026-11-05",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "102e7e5",
+              "scope": "android",
+              "text": "Prevent Android service stop reports from issuing a new Root TUN stop command"
+            },
+            {
+              "id": "37af16f",
+              "scope": "android",
+              "text": "Recover Android 17 proxy cleanup and preserve Root TUN across transient network changes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.6",
+      "tag": "v1.1.6",
+      "date": "2026-11-05",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "d9c64ff",
+              "scope": "android",
+              "text": "Keep Root TUN connected across network changes and independent of the VPN toggle"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.4",
+      "tag": "v1.1.4",
+      "date": "2026-11-04",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "b9b15d0",
+              "scope": "android",
+              "text": "Correct Root TUN application bypass, restore owned proxy settings, and reconcile state after reboot"
+            },
+            {
+              "id": "c3f4341",
+              "scope": "android",
+              "text": "Report VPN startup completion and retain TUN session time"
+            },
+            {
+              "id": "d80c5dd",
+              "scope": "android",
+              "text": "Preserve Root TUN across sleep and restore notification speed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "tag": "v1.0.0",
+      "date": "2026-11-03",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "901223e",
+              "scope": "android",
+              "text": "Android Root TUN with shared profile, routing, DNS and app controls, dashboard mode selection and startup status"
+            },
+            {
+              "id": "9b1bce9",
+              "scope": "android",
+              "text": "Clean root tun on permission revocation"
+            },
+            {
+              "id": "7a8406f",
+              "scope": "android",
+              "text": "Add root tun watchdog, uninstall cleanup and autostart hardening"
+            },
+            {
+              "id": "e4e2f94",
+              "scope": "android",
+              "text": "Native Android Root TUN control and diagnostic sharing"
+            },
+            {
+              "id": "1f5ea1f",
+              "scope": "flutter",
+              "text": "Android Root TUN controls, authorization guidance and diagnostics"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "f9b4cf4",
+              "scope": "android",
+              "text": "Isolate root diagnostic temp files and bound streamed output"
+            },
+            {
+              "id": "2702c1e",
+              "scope": "android",
+              "text": "Slow authorization probes for unowned failed root runtimes"
+            },
+            {
+              "id": "8e9cb62",
+              "scope": "android",
+              "text": "Defer missing root report cleanup errors until grace expires"
+            },
+            {
+              "id": "e0df745",
+              "scope": "flutter",
+              "text": "Deduplicate Root TUN prompts across screens for each session"
+            },
+            {
+              "id": "dc8802c",
+              "scope": "android",
+              "text": "Preserve bounded diagnostic evidence with per-item manifests"
+            },
+            {
+              "id": "a1c58cb",
+              "scope": "android",
+              "text": "Reconcile root revocation and abnormal sessions with bounded recovery"
+            },
+            {
+              "id": "5b060a1",
+              "scope": "android",
+              "text": "Expire root reports, back off stale reconciliation and slow idle auth polling"
+            },
+            {
+              "id": "a42c58f",
+              "scope": "android",
+              "text": "Extend am user-state timeout and refresh report heading"
+            },
+            {
+              "id": "6fb6246",
+              "scope": "android",
+              "text": "Avoid magisk background su prompts"
+            },
+            {
+              "id": "2fe74a5",
+              "scope": "android",
+              "text": "Harden root tun boot locks and watchdog recovery"
+            },
+            {
+              "id": "e37003d",
+              "scope": "android",
+              "text": "Address root tun review suggestions"
+            },
+            {
+              "id": "8f38fc6",
+              "scope": "android",
+              "text": "Address root tun re-review notes"
+            },
+            {
+              "id": "9251595",
+              "scope": "common",
+              "text": "Tolerate a concurrent delete in safeDelete"
+            },
+            {
+              "id": "77f62e6",
+              "scope": "android",
+              "text": "Address root tun review rework for device testing"
+            },
+            {
+              "id": "b40899b",
+              "scope": "flutter",
+              "text": "Fix Root TUN recovery controls and diagnostic export"
+            },
+            {
+              "id": "4fa3749",
+              "scope": "android",
+              "text": "Ignore java.beans references from snakeyaml in R8"
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "entries": [
+            {
+              "id": "000bc7a",
+              "scope": "flutter",
+              "text": "Export Root TUN diagnostics without loading the archive into Dart memory"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "tag": "v0.9.1",
+      "date": "2026-10-17",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "breaking",
+          "entries": [
+            {
+              "id": "cb08088",
+              "scope": "network",
+              "text": "Desktop TUN keys follow the profile unless picked; changed values carry over"
+            }
+          ]
+        },
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "f43755c",
+              "scope": "l10n",
+              "text": "French, Spanish and Korean translations"
+            },
+            {
+              "id": "bc72bba",
+              "scope": "android",
+              "text": "No more Firebase analytics or crash reporting"
+            },
+            {
+              "id": "cb08088",
+              "scope": "network",
+              "text": "Per-key desktop TUN settings; system proxy and tray fixes"
+            },
+            {
+              "id": "5eafd7a",
+              "scope": "theme",
+              "text": "Redesigned theme colors and color styles"
+            },
+            {
+              "id": "9bd258f",
+              "scope": "dashboard",
+              "text": "A redesigned dashboard around the current exit"
+            },
+            {
+              "id": "0bac500",
+              "scope": "profiles",
+              "text": "Profile-detail resources and include-all in custom groups"
+            },
+            {
+              "id": "2ea52fd",
+              "scope": "proxies",
+              "text": "Proxy groups as cards, group tabs as chips"
+            },
+            {
+              "id": "da6fb0a",
+              "scope": "views",
+              "text": "Sortable tables for connections, requests and DNS"
+            },
+            {
+              "id": "7c9627f",
+              "scope": "ui",
+              "text": "Optional two-tier Liquid Glass and slide-to-pick menus"
+            },
+            {
+              "id": "9bd2286",
+              "scope": "ui",
+              "text": "iOS-style surfaces, alerts and sheets; clearer TV focus"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "5607f70",
+              "scope": "ui",
+              "text": "Fix pasting and Chinese input in text fields"
+            },
+            {
+              "id": "5984c16",
+              "scope": "core",
+              "text": "Large profiles no longer crash; downloads trust core CAs"
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "entries": [
+            {
+              "id": "2201c19",
+              "scope": "android",
+              "text": "Smoother Android UI while the proxy is busy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "date": "2026-10-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "breaking",
+          "entries": [
+            {
+              "id": "491fae1",
+              "scope": "views",
+              "text": "DNS and NTP override toggles are removed; picked keys apply to every profile"
+            },
+            {
+              "id": "1677024",
+              "scope": "database",
+              "text": "Custom overwrites are removed; rebuild them as custom profiles"
+            }
+          ]
+        },
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "491fae1",
+              "scope": "views",
+              "text": "Per-key DNS, NTP, sniffer and TUN settings"
+            },
+            {
+              "id": "3abda78",
+              "scope": "profiles",
+              "text": "Custom profiles"
+            },
+            {
+              "id": "8c43053",
+              "scope": "ui",
+              "text": "Stacked sheets, context menus and a sort mode"
+            },
+            {
+              "id": "532ebf0",
+              "scope": "providers",
+              "text": "DNS, Hosts and ports apply without a restart"
+            },
+            {
+              "id": "d3fa225",
+              "scope": "android",
+              "text": "Launcher shortcuts and one-step on-demand access"
+            },
+            {
+              "id": "2fa2f7f",
+              "scope": "core",
+              "text": "Share link import and mrs rule sets"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "1677024",
+              "scope": "database",
+              "text": "Unreadable settings no longer block startup or restores"
+            },
+            {
+              "id": "94a25f4",
+              "scope": "desktop",
+              "text": "Windows and Linux desktop fixes"
+            },
+            {
+              "id": "d780cb8",
+              "scope": "core,helper",
+              "text": "The elevated Core only answers its owner"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.99",
+      "tag": "v0.8.99",
+      "date": "2026-10-03",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "e131675",
+              "scope": "editor",
+              "text": "Editor word wrap and snippets"
+            },
+            {
+              "id": "e62afb7",
+              "scope": "dashboard",
+              "text": "More dashboard cards"
+            },
+            {
+              "id": "8378c70",
+              "scope": "views",
+              "text": "Hide timed-out nodes and search every list"
+            },
+            {
+              "id": "841d603",
+              "scope": "ui",
+              "text": "Sidebar, floating dock and drag to go back"
+            },
+            {
+              "id": "ee6a497",
+              "scope": "ui",
+              "text": "New app glyphs, empty states and theme page"
+            },
+            {
+              "id": "46fb7fe",
+              "scope": "overwrite",
+              "text": "Invalid override warnings and rule presets"
+            },
+            {
+              "id": "a390a42",
+              "scope": "config",
+              "text": "DNS query log and per-key DNS/NTP overrides"
+            },
+            {
+              "id": "8068e68",
+              "scope": "core",
+              "text": "Proxied service checks and outbound IP risk"
+            },
+            {
+              "id": "1e97716",
+              "scope": "platform",
+              "text": "Tray hotkeys, node delays and a delay test"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "ff23f30",
+              "scope": "core",
+              "text": "A changed resource link is now used by the next sync and by auto update"
+            },
+            {
+              "id": "e55f6d1",
+              "scope": "core",
+              "text": "DNS lookups no longer fail on networks that report no DNS servers"
+            },
+            {
+              "id": "786a6ab",
+              "scope": "proxies",
+              "text": "Smaller icons in icon-only group headers"
+            },
+            {
+              "id": "1e9955d",
+              "scope": "core,android",
+              "text": "Push notifications reconnect in Doze"
+            },
+            {
+              "id": "bee8f24",
+              "scope": "backup,database",
+              "text": "Restores never apply halfway"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.98",
+      "tag": "v0.8.98",
+      "date": "2026-09-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "c5bf5bd",
+              "scope": "resources",
+              "text": "Refresh the geo file size and time after an update finishes"
+            },
+            {
+              "id": "60f371a",
+              "scope": "core",
+              "text": "Keep the core running while Windows sleeps with the app suspended"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.97",
+      "tag": "v0.8.97",
+      "date": "2026-09-10",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "26cfbaf",
+              "scope": "ui",
+              "text": "Rework the app UI and refresh the localization"
+            },
+            {
+              "id": "aaf934c",
+              "scope": "app",
+              "text": "Rework the app layer and window handling, and add proxy authentication"
+            },
+            {
+              "id": "c0fcbc0",
+              "scope": "desktop",
+              "text": "Rework the desktop runners, packaging, and native build"
+            },
+            {
+              "id": "ae29f38",
+              "scope": "android",
+              "text": "Rework the Android VPN service and lifecycle handling"
+            },
+            {
+              "id": "adf715f",
+              "scope": "plugins",
+              "text": "Rework the desktop plugins and add the Helper service and Rust bridge"
+            },
+            {
+              "id": "c6eaa0a",
+              "scope": "core",
+              "text": "Rework the core IPC and process lifecycle"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
