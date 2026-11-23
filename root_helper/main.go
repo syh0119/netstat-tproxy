@@ -577,8 +577,44 @@ var ipv4BypassCIDRs = []string{
 	"240.0.0.0/4",
 }
 
+func collectDynamicBypassIPs(wantV6 bool) []string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var out []string
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok || ipNet.IP == nil || ipNet.IP.IsLoopback() || ipNet.IP.IsLinkLocalUnicast() {
+			continue
+		}
+		if v4 := ipNet.IP.To4(); v4 != nil {
+			if wantV6 {
+				continue
+			}
+			cidr := v4.String() + "/32"
+			if _, exists := seen[cidr]; !exists {
+				seen[cidr] = struct{}{}
+				out = append(out, cidr)
+			}
+		} else if wantV6 {
+			cidr := ipNet.IP.String() + "/128"
+			if _, exists := seen[cidr]; !exists {
+				seen[cidr] = struct{}{}
+				out = append(out, cidr)
+			}
+		}
+	}
+	return out
+}
+
 func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 	_ = teardownTProxy()
+
+	// Loose reverse-path filtering (rp_filter=2) required for TPROXY on Android multi-interface routing.
+	_ = os.WriteFile("/proc/sys/net/ipv4/conf/all/rp_filter", []byte("2"), 0o644)
+	_ = os.WriteFile("/proc/sys/net/ipv4/conf/default/rp_filter", []byte("2"), 0o644)
 
 	if err := runCmd("ip", "rule", "add", "fwmark", tproxyMarkHexMask, "table", routeTableID, "pref", "100"); err != nil {
 		return fmt.Errorf("ip rule add: %w", err)
@@ -588,20 +624,28 @@ func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 	}
 
 	pStr := strconv.Itoa(port)
+	bypassV4 := append(append([]string{}, ipv4BypassCIDRs...), collectDynamicBypassIPs(false)...)
+	tproxyPreIfaces := []string{"lo", "wlan1", "ap+", "rndis+"}
+
 	cmds := [][]string{
 		{"iptables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_PRE"},
 		{"iptables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_OUT"},
+		{"iptables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_DIVERT"},
+		{"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_DIVERT", "-j", "MARK", "--set-xmark", tproxyMarkHexMask},
+		{"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_DIVERT", "-j", "ACCEPT"},
 	}
 
-	for _, cidr := range ipv4BypassCIDRs {
+	for _, cidr := range bypassV4 {
 		cmds = append(cmds, []string{"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE", "-d", cidr, "-j", "RETURN"})
 	}
-	for _, proto := range []string{"tcp", "udp"} {
-		cmds = append(cmds, []string{
-			"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE",
-			"-p", proto,
-			"-j", "TPROXY", "--on-ip", "127.0.0.1", "--on-port", pStr, "--tproxy-mark", tproxyMarkHexMask,
-		})
+	for _, iface := range tproxyPreIfaces {
+		for _, proto := range []string{"tcp", "udp"} {
+			cmds = append(cmds, []string{
+				"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE",
+				"-i", iface, "-p", proto,
+				"-j", "TPROXY", "--on-ip", "127.0.0.1", "--on-port", pStr, "--tproxy-mark", tproxyMarkHexMask,
+			})
+		}
 	}
 
 	// OUTPUT: let loopback, mihomo's marked sockets, and redirected :53 DNS bypass TProxy mangle mark.
@@ -617,7 +661,7 @@ func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 			})
 		}
 	}
-	for _, cidr := range ipv4BypassCIDRs {
+	for _, cidr := range bypassV4 {
 		cmds = append(cmds, []string{"iptables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_OUT", "-d", cidr, "-j", "RETURN"})
 	}
 	for _, proto := range []string{"tcp", "udp"} {
@@ -634,17 +678,19 @@ func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 	)
 
 	// IPv4 DNS redirect into mihomo's dns.listen (rule #1 in nat OUTPUT overrides AdGuardHome while active),
-	// plus reject non-core DoT (:853) so Android Private DNS cleanly falls back to Clash Fake-IP DNS.
+	// Fake-IP ICMP ping DNAT to 127.0.0.1, plus reject non-core DoT (:853) and core loopback TProxy self-access.
 	if dnsHijack && dnsPort > 0 {
 		dnsStr := strconv.Itoa(dnsPort)
 		cmds = append(cmds,
 			[]string{"iptables", "-w", "2", "-t", "nat", "-N", "FLCLASH_DNS"},
 			[]string{"iptables", "-w", "2", "-t", "nat", "-A", "FLCLASH_DNS", "-m", "mark", "--mark", bypassMarkHexMask, "-j", "ACCEPT"},
+			[]string{"iptables", "-w", "2", "-t", "nat", "-A", "FLCLASH_DNS", "-d", "198.18.0.0/16", "-p", "icmp", "-j", "DNAT", "--to-destination", "127.0.0.1"},
 			[]string{"iptables", "-w", "2", "-t", "nat", "-A", "FLCLASH_DNS", "-p", "udp", "--dport", "53", "-j", "REDIRECT", "--to-ports", dnsStr},
 			[]string{"iptables", "-w", "2", "-t", "nat", "-A", "FLCLASH_DNS", "-p", "tcp", "--dport", "53", "-j", "REDIRECT", "--to-ports", dnsStr},
 			[]string{"iptables", "-w", "2", "-t", "nat", "-I", "OUTPUT", "1", "-j", "FLCLASH_DNS"},
 			[]string{"iptables", "-w", "2", "-t", "nat", "-I", "PREROUTING", "1", "-j", "FLCLASH_DNS"},
 			[]string{"iptables", "-w", "2", "-t", "filter", "-N", "FLCLASH_DOT"},
+			[]string{"iptables", "-w", "2", "-t", "filter", "-A", "FLCLASH_DOT", "-d", "127.0.0.1/32", "-p", "tcp", "-m", "mark", "--mark", bypassMarkHexMask, "--dport", pStr, "-j", "REJECT", "--reject-with", "tcp-reset"},
 			[]string{"iptables", "-w", "2", "-t", "filter", "-A", "FLCLASH_DOT", "-m", "mark", "--mark", bypassMarkHexMask, "-j", "RETURN"},
 			[]string{"iptables", "-w", "2", "-t", "filter", "-A", "FLCLASH_DOT", "-p", "tcp", "--dport", "853", "-j", "REJECT", "--reject-with", "tcp-reset"},
 			[]string{"iptables", "-w", "2", "-t", "filter", "-A", "FLCLASH_DOT", "-p", "udp", "--dport", "853", "-j", "REJECT", "--reject-with", "icmp-port-unreachable"},
@@ -685,6 +731,11 @@ func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 			return fmt.Errorf("%s failed: %w", strings.Join(c, " "), err)
 		}
 	}
+
+	// Best-effort kernel optimizations: DIVERT for established transparent sockets + conntrack REPLY bypass.
+	_ = exec.Command("iptables", "-w", "2", "-t", "mangle", "-I", "PREROUTING", "1", "-p", "tcp", "-m", "socket", "--transparent", "-j", "FLCLASH_DIVERT").Run()
+	_ = exec.Command("iptables", "-w", "2", "-t", "mangle", "-I", "FLCLASH_PRE", "1", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN").Run()
+	_ = exec.Command("iptables", "-w", "2", "-t", "mangle", "-I", "FLCLASH_OUT", "1", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN").Run()
 
 	if enableIPv6 {
 		setWlanIPv6Disabled(false)
@@ -871,19 +922,25 @@ func setupTProxyV6(pStr string) error {
 	if err := runCmd("ip", "-6", "route", "replace", "local", "::/0", "dev", "lo", "table", routeTableID); err != nil {
 		return fmt.Errorf("ip -6 route add: %w", err)
 	}
-	v6Bypass := []string{"::1/128", "fe80::/10", "fc00::/7", "ff00::/8"}
+	v6Bypass := append([]string{"::1/128", "fe80::/10", "fc00::/7", "ff00::/8"}, collectDynamicBypassIPs(true)...)
+	tproxyPreIfaces := []string{"lo", "wlan1", "ap+", "rndis+"}
 	cmds := [][]string{
 		{"ip6tables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_PRE6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_OUT6"},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-N", "FLCLASH_DIVERT6"},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_DIVERT6", "-j", "MARK", "--set-xmark", tproxyMarkHexMask},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_DIVERT6", "-j", "ACCEPT"},
 	}
 	for _, cidr := range v6Bypass {
 		cmds = append(cmds, []string{"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE6", "-d", cidr, "-j", "RETURN"})
 	}
-	for _, proto := range []string{"tcp", "udp"} {
-		cmds = append(cmds, []string{
-			"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE6",
-			"-p", proto, "-j", "TPROXY", "--on-ip", "::1", "--on-port", pStr, "--tproxy-mark", tproxyMarkHexMask,
-		})
+	for _, iface := range tproxyPreIfaces {
+		for _, proto := range []string{"tcp", "udp"} {
+			cmds = append(cmds, []string{
+				"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_PRE6",
+				"-i", iface, "-p", proto, "-j", "TPROXY", "--on-ip", "::1", "--on-port", pStr, "--tproxy-mark", tproxyMarkHexMask,
+			})
+		}
 	}
 	cmds = append(cmds,
 		[]string{"ip6tables", "-w", "2", "-t", "mangle", "-A", "FLCLASH_OUT6", "-o", "lo", "-j", "RETURN"},
@@ -907,6 +964,9 @@ func setupTProxyV6(pStr string) error {
 			return fmt.Errorf("%s failed: %w", strings.Join(c, " "), err)
 		}
 	}
+	_ = exec.Command("ip6tables", "-w", "2", "-t", "mangle", "-I", "PREROUTING", "1", "-p", "tcp", "-m", "socket", "--transparent", "-j", "FLCLASH_DIVERT6").Run()
+	_ = exec.Command("ip6tables", "-w", "2", "-t", "mangle", "-I", "FLCLASH_PRE6", "1", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN").Run()
+	_ = exec.Command("ip6tables", "-w", "2", "-t", "mangle", "-I", "FLCLASH_OUT6", "1", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN").Run()
 	return nil
 }
 
@@ -919,10 +979,13 @@ func teardownTProxy() error {
 		{"iptables", "-w", "2", "-t", "filter", "-D", "OUTPUT", "-j", "FLCLASH_DOT"},
 		{"iptables", "-w", "2", "-t", "filter", "-F", "FLCLASH_DOT"},
 		{"iptables", "-w", "2", "-t", "filter", "-X", "FLCLASH_DOT"},
+		{"iptables", "-w", "2", "-t", "mangle", "-D", "PREROUTING", "-p", "tcp", "-m", "socket", "--transparent", "-j", "FLCLASH_DIVERT"},
 		{"iptables", "-w", "2", "-t", "mangle", "-D", "PREROUTING", "-j", "FLCLASH_PRE"},
 		{"iptables", "-w", "2", "-t", "mangle", "-D", "OUTPUT", "-j", "FLCLASH_OUT"},
+		{"iptables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_DIVERT"},
 		{"iptables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_PRE"},
 		{"iptables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_OUT"},
+		{"iptables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_DIVERT"},
 		{"iptables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_PRE"},
 		{"iptables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_OUT"},
 		{"ip", "rule", "del", "fwmark", tproxyMarkHexMask, "table", routeTableID},
@@ -931,10 +994,13 @@ func teardownTProxy() error {
 		{"ip6tables", "-w", "2", "-t", "filter", "-D", "FORWARD", "-j", "FLCLASH_V6_BLOCK"},
 		{"ip6tables", "-w", "2", "-t", "filter", "-F", "FLCLASH_V6_BLOCK"},
 		{"ip6tables", "-w", "2", "-t", "filter", "-X", "FLCLASH_V6_BLOCK"},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-D", "PREROUTING", "-p", "tcp", "-m", "socket", "--transparent", "-j", "FLCLASH_DIVERT6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-D", "PREROUTING", "-j", "FLCLASH_PRE6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-D", "OUTPUT", "-j", "FLCLASH_OUT6"},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_DIVERT6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_PRE6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-F", "FLCLASH_OUT6"},
+		{"ip6tables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_DIVERT6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_PRE6"},
 		{"ip6tables", "-w", "2", "-t", "mangle", "-X", "FLCLASH_OUT6"},
 		{"ip", "-6", "rule", "del", "fwmark", tproxyMarkHexMask, "table", routeTableID},
