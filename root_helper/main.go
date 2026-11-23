@@ -114,6 +114,8 @@ func main() {
 		region:     newRegionManager(filepath.Dir(cfg.CoreLogFile)),
 	}
 	srv.region.init()
+	ensureGmsAndAppUnfrozen(cfg.PackageName)
+	srv.startTProxyWatchdog()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", srv.requireCallerUID(srv.handlePing))
@@ -692,7 +694,164 @@ func setupTProxy(port int, dnsPort int, dnsHijack bool, enableIPv6 bool) error {
 	} else {
 		setWlanIPv6Disabled(true)
 	}
+	setupFirewallBypassRules()
+	ensureGmsAndAppUnfrozen("")
 	return nil
+}
+
+type firewallRule struct {
+	bin   string
+	chain string
+	args  []string
+}
+
+var (
+	v4OutputBypassSpecs = [][]string{
+		{"-o", "lo", "-j", "RETURN"},
+		{"-d", "127.0.0.0/8", "-j", "RETURN"},
+		{"-m", "mark", "--mark", tproxyMarkHexMask, "-j", "RETURN"},
+		{"-m", "mark", "--mark", bypassMarkHexMask, "-j", "RETURN"},
+	}
+	v4InputBypassSpecs = [][]string{
+		{"-i", "lo", "-j", "RETURN"},
+		{"-s", "127.0.0.0/8", "-j", "RETURN"},
+		{"-m", "mark", "--mark", tproxyMarkHexMask, "-j", "RETURN"},
+		{"-m", "mark", "--mark", bypassMarkHexMask, "-j", "RETURN"},
+	}
+	v6OutputBypassSpecs = [][]string{
+		{"-o", "lo", "-j", "RETURN"},
+		{"-d", "::1/128", "-j", "RETURN"},
+		{"-m", "mark", "--mark", tproxyMarkHexMask, "-j", "RETURN"},
+		{"-m", "mark", "--mark", bypassMarkHexMask, "-j", "RETURN"},
+	}
+	v6InputBypassSpecs = [][]string{
+		{"-i", "lo", "-j", "RETURN"},
+		{"-s", "::1/128", "-j", "RETURN"},
+		{"-m", "mark", "--mark", tproxyMarkHexMask, "-j", "RETURN"},
+		{"-m", "mark", "--mark", bypassMarkHexMask, "-j", "RETURN"},
+	}
+)
+
+func collectFirewallBypassRules() []firewallRule {
+	var rules []firewallRule
+	for _, chain := range []string{"fw_OUTPUT", "oplus_fw_OUTPUT"} {
+		for _, spec := range v4OutputBypassSpecs {
+			rules = append(rules, firewallRule{bin: "iptables", chain: chain, args: spec})
+		}
+		for _, spec := range v6OutputBypassSpecs {
+			rules = append(rules, firewallRule{bin: "ip6tables", chain: chain, args: spec})
+		}
+	}
+	for _, chain := range []string{"fw_INPUT", "oplus_fw_INPUT"} {
+		for _, spec := range v4InputBypassSpecs {
+			rules = append(rules, firewallRule{bin: "iptables", chain: chain, args: spec})
+		}
+		for _, spec := range v6InputBypassSpecs {
+			rules = append(rules, firewallRule{bin: "ip6tables", chain: chain, args: spec})
+		}
+	}
+	return rules
+}
+
+// ensureRuleFirst inserts a filter rule at position 1 only if it is not already present.
+func ensureRuleFirst(bin, chain string, ruleArgs []string) {
+	checkArgs := append([]string{"-w", "2", "-t", "filter", "-C", chain}, ruleArgs...)
+	if exec.Command(bin, checkArgs...).Run() == nil {
+		return
+	}
+	insertArgs := append([]string{"-w", "2", "-t", "filter", "-I", chain, "1"}, ruleArgs...)
+	_ = exec.Command(bin, insertArgs...).Run()
+}
+
+// setupFirewallBypassRules prevents OEM eBPF chains (e.g. ColorOS fw_OUTPUT/oplus_fw_OUTPUT)
+// from dropping redirected :53 DNS, TProxy-marked packets, or loopback delivery.
+func setupFirewallBypassRules() {
+	for _, r := range collectFirewallBypassRules() {
+		ensureRuleFirst(r.bin, r.chain, r.args)
+	}
+}
+
+func teardownFirewallBypassRules() {
+	for _, r := range collectFirewallBypassRules() {
+		delArgs := append([]string{"-w", "2", "-t", "filter", "-D", r.chain}, r.args...)
+		for i := 0; i < 4; i++ {
+			if exec.Command(r.bin, delArgs...).Run() != nil {
+				break
+			}
+		}
+	}
+}
+
+func ensureGmsAndAppUnfrozen(extraPkg string) {
+	pkgs := []string{
+		defaultPackageName,
+		"com.google.android.gms",
+		"com.android.vending",
+		"com.google.android.gsf",
+	}
+	if extraPkg != "" && extraPkg != defaultPackageName {
+		pkgs = append(pkgs, extraPkg)
+	}
+	for _, pkg := range pkgs {
+		_ = exec.Command("cmd", "deviceidle", "whitelist", "+"+pkg).Run()
+	}
+
+	out, err := exec.Command("settings", "get", "secure", "no_frozen").Output()
+	if err != nil {
+		return
+	}
+	cur := strings.TrimSpace(string(out))
+	if cur == "" || cur == "null" {
+		return
+	}
+	existing := make(map[string]struct{})
+	for _, item := range strings.Split(cur, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			existing[item] = struct{}{}
+		}
+	}
+	changed := false
+	for _, pkg := range pkgs {
+		if _, ok := existing[pkg]; !ok {
+			if !strings.HasSuffix(cur, ",") {
+				cur += ","
+			}
+			cur += pkg + ","
+			existing[pkg] = struct{}{}
+			changed = true
+		}
+	}
+	if changed {
+		_ = exec.Command("settings", "put", "secure", "no_frozen", cur).Run()
+	}
+}
+
+func (s *HelperServer) ensureTProxyRules() {
+	s.mu.Lock()
+	active := s.tproxyActive
+	dnsHijack := s.dnsHijack
+	dnsPort := s.dnsPort
+	s.mu.Unlock()
+	if !active {
+		return
+	}
+	setupFirewallBypassRules()
+	if dnsHijack && dnsPort > 0 {
+		if exec.Command("iptables", "-w", "2", "-t", "nat", "-C", "OUTPUT", "-j", "FLCLASH_DNS").Run() != nil {
+			_ = exec.Command("iptables", "-w", "2", "-t", "nat", "-I", "OUTPUT", "1", "-j", "FLCLASH_DNS").Run()
+		}
+	}
+}
+
+func (s *HelperServer) startTProxyWatchdog() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.ensureTProxyRules()
+		}
+	}()
 }
 
 func setWlanIPv6Disabled(disabled bool) {
@@ -781,6 +940,7 @@ func teardownTProxy() error {
 		{"ip", "-6", "rule", "del", "fwmark", tproxyMarkHexMask, "table", routeTableID},
 		{"ip", "-6", "route", "flush", "table", routeTableID},
 	}
+	teardownFirewallBypassRules()
 	for _, c := range clean {
 		_ = exec.Command(c[0], c[1:]...).Run()
 	}
